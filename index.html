@@ -94,7 +94,6 @@
         text-overflow: ellipsis;
     }
 
-    /* Input style for renaming */
     .rename-input {
       background: var(--bg-app);
       border: 1px solid var(--accent);
@@ -146,8 +145,29 @@
       border-top: 1px solid var(--border);
       display: flex;
       flex-direction: column;
+      position: relative; /* Needed for absolute positioning of handle */
+      /* Transition is handled via JS class now to allow smooth dragging */
+    }
+    
+    .terminal-section.smooth-transition {
       transition: height 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
-      overflow: hidden;
+    }
+
+    /* Resize Handle */
+    .resize-handle {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 4px;
+      cursor: ns-resize;
+      background-color: transparent;
+      z-index: 100;
+      transition: background-color 0.2s;
+    }
+
+    .resize-handle:hover, .resize-handle.active {
+      background-color: var(--accent);
     }
 
     .term-header {
@@ -253,7 +273,6 @@
 
   <!-- Tabs (Top) -->
   <div class="tabs-wrapper" id="tabs-container">
-    <!-- Tabs will be injected via JS -->
     <div class="add-tab-btn" id="add-tab">+</div>
   </div>
 
@@ -263,7 +282,11 @@
   </div>
 
   <!-- Terminal -->
-  <div class="terminal-section" id="terminal">
+  <!-- Added class 'smooth-transition' initially -->
+  <div class="terminal-section smooth-transition" id="terminal">
+    <!-- Resize Handle Added Here -->
+    <div class="resize-handle" id="term-resizer"></div>
+
     <div class="term-header">
       <div class="term-left-group">
         <span class="term-title"><i class="fas fa-terminal"></i> Console</span>
@@ -295,41 +318,34 @@
 
   <script>
     // --- Global State ---
-    let files = {}; // Content map
+    let files = {}; 
     let untitledCount = 1;
     let editor;
 
-    // --- Persistence (Local Storage) ---
+    // --- Persistence ---
     function saveSession() {
-      // 1. Update memory with current editor content
       const activeTab = document.querySelector('.tab.active');
       if (activeTab && editor) {
         files[activeTab.dataset.file] = editor.getValue();
       }
-
-      // 2. Get the visual order of tabs
       const tabs = document.querySelectorAll('.tab');
       const tabOrder = Array.from(tabs).map(t => t.dataset.file);
 
-      // 3. Serialize
       const sessionData = {
         files: files,
         order: tabOrder,
         activeId: activeTab ? activeTab.dataset.file : null,
         count: untitledCount
       };
-
       localStorage.setItem('luma_editor_session', JSON.stringify(sessionData));
     }
 
     function restoreSession() {
       const saved = localStorage.getItem('luma_editor_session');
-      
       if (!saved) {
-        // First time load
         createTab('main', `-- Uranium Editor (Luma Mode)
--- Auto-Save is Enabled.
--- Double click tabs to rename them.
+-- Auto-Save Enabled.
+-- Drag console top border to resize.
 
 print("Hello Luma!")
 `);
@@ -347,23 +363,16 @@ print("Hello Luma!")
           return;
         }
 
-        // Restore tabs in correct order
         order.forEach(id => {
           if (files[id] !== undefined) {
              const isActive = (id === data.activeId);
              renderTab(id, isActive);
-             if (isActive) {
-               // We set the value later when we know editor is ready,
-               // but we can set the active class here.
-             }
           }
         });
 
-        // If we restored tabs, ensure one is open in editor
         if (data.activeId && files[data.activeId]) {
            editor.setValue(files[data.activeId]);
         } else if (order.length > 0) {
-           // Fallback to first tab
            const firstId = order[0];
            const tab = document.querySelector(`.tab[data-file="${firstId}"]`);
            if(tab) tab.classList.add('active');
@@ -371,7 +380,6 @@ print("Hello Luma!")
         }
 
       } catch (e) {
-        console.error("Session Restore Failed:", e);
         localStorage.removeItem('luma_editor_session');
         createTab('main');
       }
@@ -437,12 +445,10 @@ print("Hello Luma!")
         document.getElementById('cursor-pos').textContent = `Ln ${e.position.lineNumber}, Col ${e.position.column}`;
       });
 
-      // --- AUTO SAVE TRIGGER ---
       editor.onDidChangeModelContent(() => {
         saveSession();
       });
 
-      // Initialize tabs now that editor is ready
       restoreSession();
     });
 
@@ -478,7 +484,6 @@ print("Hello Luma!")
       }
     });
 
-    // Rename Logic
     tabsContainer.addEventListener('dblclick', (e) => {
         const tab = e.target.closest('.tab');
         if (!tab || e.target.classList.contains('tab-close')) return;
@@ -504,13 +509,10 @@ print("Hello Luma!")
             newSpan.className = 'tab-name';
             
             if (newName && newName !== oldId && !files[newName]) {
-                // Update memory
                 files[newName] = files[oldId];
                 delete files[oldId];
-                // Update DOM
                 tab.dataset.file = newName;
                 newSpan.textContent = newName + '.luau';
-                // Trigger Save
                 saveSession();
             } else {
                 newSpan.textContent = oldId + '.luau';
@@ -527,13 +529,10 @@ print("Hello Luma!")
     });
 
     function createTab(name = null, content = null) {
-      // Save state of current tab before creating new one
       const current = document.querySelector('.tab.active');
       if(current && editor) files[current.dataset.file] = editor.getValue();
 
       const id = name ? name : `script${untitledCount++}`;
-      
-      // Only set content if it's new, otherwise preserve restored content
       if (!files[id]) {
         files[id] = content !== null ? content : `print("New Script ${id}")`;
       }
@@ -541,8 +540,7 @@ print("Hello Luma!")
       document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
       renderTab(id, true);
       editor.setValue(files[id]);
-      
-      saveSession(); // Save immediately
+      saveSession(); 
     }
 
     function switchTab(tab) {
@@ -551,20 +549,17 @@ print("Hello Luma!")
           files[old.dataset.file] = editor.getValue(); 
           old.classList.remove('active'); 
       }
-      
       tab.classList.add('active');
       editor.setValue(files[tab.dataset.file] || "");
-      saveSession(); // Save new active state
+      saveSession(); 
     }
 
     function closeTab(tab) {
       if(document.querySelectorAll('.tab').length === 1) return;
-      
       tab.style.transform = 'scale(0.9)';
       tab.style.opacity = '0';
       tab.style.width = '0';
       tab.style.padding = '0';
-      
       setTimeout(() => {
         delete files[tab.dataset.file];
         if(tab.classList.contains('active')) {
@@ -572,7 +567,7 @@ print("Hello Luma!")
           if(target && target.classList.contains('tab')) switchTab(target);
         }
         tab.remove();
-        saveSession(); // Save after removal
+        saveSession();
       }, 200);
     }
 
@@ -598,14 +593,12 @@ print("Hello Luma!")
 
     function connectSocket() {
       socket = new WebSocket("ws://localhost:48721");
-
       socket.onopen = () => {
         statusText.innerText = "Connected";
         statusDot.classList.remove('disconnected');
         statusDot.classList.add('connected');
         log("Connected to Luma", 'sys');
       };
-
       socket.onmessage = (event) => {
         const raw = event.data;
         try {
@@ -620,7 +613,6 @@ print("Hello Luma!")
           log(raw, type);
         }
       };
-
       socket.onclose = () => {
         statusText.innerText = "Disconnected";
         statusDot.classList.remove('connected');
@@ -636,21 +628,74 @@ print("Hello Luma!")
       outputLog.innerHTML = '';
     });
     
+    // --- Toggle & Resizing Logic ---
     let termOpen = true;
-    document.getElementById('btn-toggle').addEventListener('click', function() {
-      const t = document.getElementById('terminal');
-      const icon = this;
-      
+    const terminal = document.getElementById('terminal');
+    const resizer = document.getElementById('term-resizer');
+    const toggleBtn = document.getElementById('btn-toggle');
+    
+    // Toggle Button Logic
+    toggleBtn.addEventListener('click', function() {
       if(termOpen) {
-        t.style.height = '32px'; 
-        icon.style.transform = 'rotate(180deg)';
+        // Collapse
+        terminal.classList.add('smooth-transition'); // Enable animation
+        terminal.style.height = '32px'; 
+        this.style.transform = 'rotate(180deg)';
       } else {
-        t.style.height = '250px';
-        icon.style.transform = 'rotate(0deg)';
+        // Expand
+        terminal.classList.add('smooth-transition'); // Enable animation
+        terminal.style.height = '250px';
+        this.style.transform = 'rotate(0deg)';
       }
       termOpen = !termOpen;
-      setTimeout(() => editor.layout(), 50);
       setTimeout(() => editor.layout(), 310);
+    });
+
+    // --- Resize Dragging Logic ---
+    let isResizing = false;
+    let startY, startHeight;
+
+    resizer.addEventListener('mousedown', (e) => {
+        isResizing = true;
+        startY = e.clientY;
+        startHeight = parseInt(getComputedStyle(terminal).height, 10);
+        
+        // Disable transition during drag to prevent lag
+        terminal.classList.remove('smooth-transition');
+        resizer.classList.add('active');
+        document.body.style.cursor = 'ns-resize';
+        document.body.style.userSelect = 'none'; // Prevent text selection
+    });
+
+    document.addEventListener('mousemove', (e) => {
+        if (!isResizing) return;
+
+        // Calculate delta (Moving mouse UP increases height, DOWN decreases)
+        const delta = startY - e.clientY;
+        const newHeight = startHeight + delta;
+
+        // Constraints
+        if (newHeight > 32 && newHeight < window.innerHeight - 50) {
+            terminal.style.height = `${newHeight}px`;
+            editor.layout(); // Important: Redraw Monaco immediately
+            
+            // Update state variable based on height
+            if (newHeight > 40 && !termOpen) {
+                termOpen = true;
+                toggleBtn.style.transform = 'rotate(0deg)';
+            }
+        }
+    });
+
+    document.addEventListener('mouseup', () => {
+        if (isResizing) {
+            isResizing = false;
+            // Re-enable smooth transition for future toggles
+            terminal.classList.add('smooth-transition');
+            resizer.classList.remove('active');
+            document.body.style.cursor = '';
+            document.body.style.userSelect = '';
+        }
     });
 
   </script>
