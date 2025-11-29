@@ -5,7 +5,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Uranium - Luma</title>
   
-  <!-- Fonts & Icons -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
@@ -43,7 +42,6 @@
     @keyframes tabEnter { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
     @keyframes logSlideIn { from { opacity: 0; transform: translateX(-5px); } to { opacity: 1; transform: translateX(0); } }
 
-    /* --- Staggered Startup --- */
     .tabs-wrapper { animation: fadeIn 0.3s ease-out forwards; }
     .editor-container { animation: fadeIn 0.4s ease-out 0.1s forwards; opacity: 0; }
     .terminal-section { animation: fadeIn 0.4s ease-out 0.2s forwards; opacity: 0; }
@@ -59,6 +57,9 @@
       border-bottom: 1px solid var(--border);
       padding-top: 2px;
       z-index: 10;
+      
+      /* FIX: Prevent tabs from getting squished */
+      flex-shrink: 0; 
     }
 
     .tab {
@@ -88,11 +89,7 @@
       border-top: 2px solid var(--accent);
     }
 
-    .tab-name {
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
-    }
+    .tab-name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
     .rename-input {
       background: var(--bg-app);
@@ -134,6 +131,9 @@
       flex: 1;
       position: relative;
       background-color: var(--bg-app);
+      
+      /* FIX: Ensure editor has minimum height so it doesn't disappear */
+      min-height: 50px; 
     }
     #editor { width: 100%; height: 100%; }
 
@@ -145,21 +145,22 @@
       border-top: 1px solid var(--border);
       display: flex;
       flex-direction: column;
-      position: relative; /* Needed for absolute positioning of handle */
-      /* Transition is handled via JS class now to allow smooth dragging */
+      position: relative;
+      
+      /* FIX: Prevent terminal from getting squished by editor */
+      flex-shrink: 0;
     }
     
     .terminal-section.smooth-transition {
       transition: height 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
     }
 
-    /* Resize Handle */
     .resize-handle {
       position: absolute;
-      top: 0;
+      top: -3px; /* Slightly higher to be easier to grab */
       left: 0;
       right: 0;
-      height: 4px;
+      height: 6px;
       cursor: ns-resize;
       background-color: transparent;
       z-index: 100;
@@ -266,6 +267,9 @@
       font-size: 11px;
       font-weight: 600;
       color: #fff;
+      
+      /* FIX: Prevent status bar from squishing */
+      flex-shrink: 0;
     }
   </style>
 </head>
@@ -282,9 +286,7 @@
   </div>
 
   <!-- Terminal -->
-  <!-- Added class 'smooth-transition' initially -->
   <div class="terminal-section smooth-transition" id="terminal">
-    <!-- Resize Handle Added Here -->
     <div class="resize-handle" id="term-resizer"></div>
 
     <div class="term-header">
@@ -623,7 +625,6 @@ print("Hello Luma!")
 
     connectSocket();
 
-    // --- UI Tools ---
     document.getElementById('btn-clear').addEventListener('click', () => {
       outputLog.innerHTML = '';
     });
@@ -634,16 +635,13 @@ print("Hello Luma!")
     const resizer = document.getElementById('term-resizer');
     const toggleBtn = document.getElementById('btn-toggle');
     
-    // Toggle Button Logic
     toggleBtn.addEventListener('click', function() {
       if(termOpen) {
-        // Collapse
-        terminal.classList.add('smooth-transition'); // Enable animation
+        terminal.classList.add('smooth-transition');
         terminal.style.height = '32px'; 
         this.style.transform = 'rotate(180deg)';
       } else {
-        // Expand
-        terminal.classList.add('smooth-transition'); // Enable animation
+        terminal.classList.add('smooth-transition');
         terminal.style.height = '250px';
         this.style.transform = 'rotate(0deg)';
       }
@@ -651,7 +649,7 @@ print("Hello Luma!")
       setTimeout(() => editor.layout(), 310);
     });
 
-    // --- Resize Dragging Logic ---
+    // --- Resizing Constraints Fixed ---
     let isResizing = false;
     let startY, startHeight;
 
@@ -659,27 +657,25 @@ print("Hello Luma!")
         isResizing = true;
         startY = e.clientY;
         startHeight = parseInt(getComputedStyle(terminal).height, 10);
-        
-        // Disable transition during drag to prevent lag
         terminal.classList.remove('smooth-transition');
         resizer.classList.add('active');
         document.body.style.cursor = 'ns-resize';
-        document.body.style.userSelect = 'none'; // Prevent text selection
+        document.body.style.userSelect = 'none';
     });
 
     document.addEventListener('mousemove', (e) => {
         if (!isResizing) return;
-
-        // Calculate delta (Moving mouse UP increases height, DOWN decreases)
         const delta = startY - e.clientY;
         const newHeight = startHeight + delta;
 
-        // Constraints
-        if (newHeight > 32 && newHeight < window.innerHeight - 50) {
+        // FIXED CONSTRAINT: Ensure we don't resize so big we squash the editor
+        // Window Height - Tabs (38) - Status Bar (22) - Min Editor (50) = Max Terminal Height
+        const maxHeight = window.innerHeight - 38 - 22 - 50;
+
+        if (newHeight > 32 && newHeight < maxHeight) {
             terminal.style.height = `${newHeight}px`;
-            editor.layout(); // Important: Redraw Monaco immediately
+            editor.layout(); 
             
-            // Update state variable based on height
             if (newHeight > 40 && !termOpen) {
                 termOpen = true;
                 toggleBtn.style.transform = 'rotate(0deg)';
@@ -690,7 +686,6 @@ print("Hello Luma!")
     document.addEventListener('mouseup', () => {
         if (isResizing) {
             isResizing = false;
-            // Re-enable smooth transition for future toggles
             terminal.classList.add('smooth-transition');
             resizer.classList.remove('active');
             document.body.style.cursor = '';
