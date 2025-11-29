@@ -7,22 +7,26 @@
   
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   
   <style>
     :root {
-      --bg-app: #1c1c1c;
+      --bg-app: #1e1e1e;
       --bg-header: #252526;
-      --bg-terminal: #181818;
+      --bg-terminal: #1e1e1e;
       --border: #333333;
-      --accent: #00a2ff;
+      --accent: #007acc;
       --text-main: #cccccc;
       --text-muted: #858585;
       
-      --log-print: #ffffff;
-      --log-warn: #ffcc00;
-      --log-error: #ff5555;
+      --log-print: #e0e0e0;
+      --log-warn: #cca700;
+      --log-error: #f48771;
+      --log-sys: #00a2ff;
+
+      --ease-spring: cubic-bezier(0.175, 0.885, 0.32, 1.275);
+      --ease-smooth: cubic-bezier(0.4, 0, 0.2, 1);
     }
 
     * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -35,140 +39,174 @@
       width: 100vw;
       display: flex;
       flex-direction: column;
-      overflow: hidden; /* No body scrollbars */
-      position: relative;
+      overflow: hidden;
+      user-select: none;
     }
 
     /* --- Animations --- */
-    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-    @keyframes tabEnter { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
-    @keyframes logSlideIn { from { opacity: 0; transform: translateX(-5px); } to { opacity: 1; transform: translateX(0); } }
+    @keyframes slideUpFade {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
 
-    .tabs-wrapper { animation: fadeIn 0.3s ease-out forwards; }
-    .editor-container { animation: fadeIn 0.4s ease-out 0.1s forwards; opacity: 0; }
-    .terminal-section { animation: fadeIn 0.4s ease-out 0.2s forwards; opacity: 0; }
+    @keyframes tabOpen {
+      from { opacity: 0; transform: scale(0.95) translateY(5px); width: 0; padding: 0; }
+      to { opacity: 1; transform: scale(1) translateY(0); width: 140px; padding: 0 12px; }
+    }
+
+    @keyframes pulse {
+      0% { box-shadow: 0 0 0 0 rgba(76, 209, 55, 0.4); }
+      70% { box-shadow: 0 0 0 4px rgba(76, 209, 55, 0); }
+      100% { box-shadow: 0 0 0 0 rgba(76, 209, 55, 0); }
+    }
+
+    @keyframes menuPop {
+      from { opacity: 0; transform: scale(0.9); }
+      to { opacity: 1; transform: scale(1); }
+    }
 
     /* --- Tabs Area --- */
     .tabs-wrapper {
       background-color: var(--bg-header);
       display: flex;
-      align-items: center;
+      align-items: flex-end;
       overflow-x: auto;
       scrollbar-width: none;
-      height: 38px;
-      min-height: 38px; /* Force height */
-      border-bottom: 1px solid var(--border);
-      padding-top: 2px;
+      height: 42px;
+      min-height: 42px;
+      padding: 0 10px;
+      padding-top: 6px;
       z-index: 20;
-      flex-shrink: 0; /* Prevent shrinking */
+      animation: slideUpFade 0.5s var(--ease-smooth);
     }
 
     .tab {
       background-color: transparent;
-      padding: 0 15px;
-      height: 100%;
-      font-size: 12px;
+      padding: 0 12px;
+      height: 36px;
+      font-size: 13px;
       color: var(--text-muted);
       cursor: pointer;
       display: flex;
       align-items: center;
       gap: 8px;
-      border-right: 1px solid var(--border);
-      min-width: 120px;
+      border-radius: 8px 8px 0 0;
+      margin-right: 4px;
+      border: 1px solid transparent;
+      min-width: 140px;
       max-width: 200px;
       position: relative;
-      user-select: none;
-      transition: background-color 0.2s;
-      animation: tabEnter 0.2s ease-out;
+      transition: background 0.2s, color 0.2s, transform 0.2s;
+      animation: tabOpen 0.3s var(--ease-spring) forwards;
+      transform-origin: bottom center;
     }
 
-    .tab:hover { background-color: var(--bg-app); color: var(--text-main); }
+    .tab.closing {
+      width: 0 !important;
+      min-width: 0 !important;
+      padding: 0 !important;
+      margin: 0 !important;
+      opacity: 0;
+      transform: scaleX(0);
+      pointer-events: none;
+      transition: all 0.25s var(--ease-smooth);
+    }
+
+    .tab:hover { background-color: rgba(255, 255, 255, 0.05); color: var(--text-main); }
     
     .tab.active {
       background-color: var(--bg-app);
-      color: var(--text-main);
+      color: #fff;
       border-top: 2px solid var(--accent);
+      height: 37px;
+      margin-bottom: -1px; 
+      z-index: 2;
     }
 
-    .tab-name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .tab-name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; pointer-events: none; flex: 1; }
 
     .rename-input {
-      background: var(--bg-app);
+      background: #3c3c3c;
       border: 1px solid var(--accent);
-      color: var(--text-main);
+      color: white;
       font-family: inherit;
       font-size: 12px;
-      width: 80px;
+      width: 100%;
       outline: none;
       padding: 2px 4px;
-      border-radius: 2px;
-      margin-left: -4px;
+      border-radius: 4px;
     }
 
     .tab-close {
-      margin-left: auto;
-      font-size: 14px;
+      font-size: 12px;
       opacity: 0;
-      border-radius: 3px;
-      padding: 0 4px;
-      transition: opacity 0.2s;
+      width: 20px;
+      height: 20px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 4px;
+      transform: scale(0.8);
+      transition: all 0.2s var(--ease-spring);
     }
-    .tab:hover .tab-close { opacity: 1; }
-    .tab-close:hover { background-color: #ff4757; color: white; }
+    .tab:hover .tab-close { opacity: 1; transform: scale(1); }
+    .tab-close:hover { background-color: rgba(241, 76, 76, 0.2); color: #ff5555; }
 
     .add-tab-btn {
-      padding: 0 15px;
+      width: 36px;
+      height: 36px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
       color: var(--text-muted);
       cursor: pointer;
       font-size: 14px;
-      height: 100%;
-      display: flex;
-      align-items: center;
+      border-radius: 6px;
+      margin-left: 5px;
+      margin-bottom: 2px;
+      transition: all 0.2s;
     }
-    .add-tab-btn:hover { color: var(--text-main); background-color: rgba(255,255,255,0.05); }
+    .add-tab-btn:hover { color: #fff; background-color: rgba(255,255,255,0.08); transform: rotate(90deg); }
 
-    /* --- Editor Area --- */
+    /* --- Editor --- */
     .editor-container {
-      flex: 1; /* Takes all available space */
+      flex: 1;
       position: relative;
       background-color: var(--bg-app);
       overflow: hidden;
+      opacity: 0;
+      border-top: 1px solid var(--border);
+      animation: slideUpFade 0.6s 0.1s var(--ease-smooth) forwards;
     }
     #editor { width: 100%; height: 100%; }
 
-    /* --- Output Terminal (OVERLAY MODE) --- */
+    /* --- Terminal --- */
     .terminal-section {
-      position: absolute; /* Takes it out of the layout flow */
-      bottom: 22px; /* Sits exactly on top of the status bar */
+      position: absolute;
+      bottom: 22px;
       left: 0;
       right: 0;
-      height: 250px;
+      /* CHANGE: Start with height 200px (Open) */
+      height: 200px;
       background-color: var(--bg-terminal);
       border-top: 1px solid var(--border);
       display: flex;
       flex-direction: column;
-      z-index: 10; /* Above editor, below status bar context if needed */
-      box-shadow: 0 -5px 15px rgba(0,0,0,0.3); /* Shadow to separate from editor */
+      z-index: 10;
+      box-shadow: 0 -4px 25px rgba(0,0,0,0.4);
+      animation: slideUpFade 0.6s 0.2s var(--ease-smooth) forwards;
+      opacity: 0;
     }
-    
-    .terminal-section.smooth-transition {
-      transition: height 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
-    }
+    .terminal-section.smooth { transition: height 0.4s var(--ease-spring); }
 
     .resize-handle {
       position: absolute;
-      top: -4px;
-      left: 0;
-      right: 0;
-      height: 8px; /* Larger hit area */
+      top: -6px; left: 0; right: 0;
+      height: 12px;
       cursor: ns-resize;
-      background-color: transparent;
       z-index: 100;
     }
-
-    .resize-handle:hover, .resize-handle.active {
-      background-color: var(--accent);
-    }
+    .resize-handle:hover { background: rgba(255,255,255,0.05); }
 
     .term-header {
       padding: 0 15px;
@@ -177,19 +215,17 @@
       display: flex;
       align-items: center;
       justify-content: space-between;
-      border-bottom: 1px solid var(--border);
       background-color: #202020;
-      user-select: none;
+      border-bottom: 1px solid var(--border);
     }
-
-    .term-left-group { display: flex; align-items: center; gap: 15px; }
+    .term-left { display: flex; align-items: center; gap: 15px; }
 
     .term-title {
       font-size: 11px;
-      text-transform: uppercase;
-      font-weight: 600;
+      font-weight: 700;
       color: var(--text-muted);
       letter-spacing: 0.5px;
+      text-transform: uppercase;
       display: flex;
       align-items: center;
       gap: 8px;
@@ -201,31 +237,28 @@
       align-items: center;
       gap: 6px;
       color: var(--text-muted);
-      background: rgba(255,255,255,0.03);
-      padding: 2px 8px;
-      border-radius: 10px;
-      border: 1px solid rgba(255,255,255,0.05);
+      background: rgba(255,255,255,0.04);
+      padding: 3px 10px;
+      border-radius: 12px;
+      transition: background 0.3s;
     }
-    
-    .status-dot {
-      width: 6px;
-      height: 6px;
-      border-radius: 50%;
-      background-color: #555;
-      transition: background-color 0.3s;
-    }
-    .status-dot.connected { background-color: #4cd137; box-shadow: 0 0 5px rgba(76, 209, 55, 0.5); }
+    .connection-status:hover { background: rgba(255,255,255,0.08); }
+
+    .status-dot { width: 6px; height: 6px; border-radius: 50%; transition: background 0.3s; }
+    .status-dot.connected { background-color: #4cd137; animation: pulse 2s infinite; }
     .status-dot.disconnected { background-color: #e84118; }
 
     .term-controls i {
-      margin-left: 12px;
+      margin-left: 10px;
+      padding: 6px;
       cursor: pointer;
       color: var(--text-muted);
       font-size: 12px;
-      transition: color 0.2s, transform 0.3s;
+      transition: all 0.2s;
+      border-radius: 4px;
     }
-    .term-controls i:hover { color: var(--text-main); }
-    
+    .term-controls i:hover { color: #fff; background: rgba(255,255,255,0.1); transform: scale(1.1); }
+
     .term-output {
       flex: 1;
       padding: 10px 15px;
@@ -235,104 +268,126 @@
       scroll-behavior: smooth;
     }
 
-    .term-output::-webkit-scrollbar { width: 10px; }
-    .term-output::-webkit-scrollbar-track { background: var(--bg-terminal); }
-    .term-output::-webkit-scrollbar-thumb { background: #333; border-radius: 5px; border: 2px solid var(--bg-terminal); }
-    .term-output::-webkit-scrollbar-thumb:hover { background: #444; }
+    ::-webkit-scrollbar { width: 8px; height: 8px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: #333; border-radius: 4px; border: 2px solid transparent; background-clip: content-box; }
+    ::-webkit-scrollbar-thumb:hover { background-color: #555; }
 
     .log-entry { 
-      margin-bottom: 4px; 
-      padding-bottom: 2px;
+      margin-bottom: 4px;
       word-break: break-all;
       white-space: pre-wrap;
       border-bottom: 1px solid rgba(255,255,255,0.03);
-      line-height: 1.4;
-      animation: logSlideIn 0.2s ease-out;
+      line-height: 1.5;
+      padding-bottom: 2px;
+      animation: slideUpFade 0.3s var(--ease-smooth);
     }
-
     .log-print { color: var(--log-print); }
     .log-warn { color: var(--log-warn); }
     .log-error { color: var(--log-error); }
-    .log-sys { color: #00a2ff; font-style: italic; opacity: 0.7; font-size: 12px; }
+    .log-sys { color: var(--log-sys); font-style: italic; font-size: 12px; }
 
     /* --- Status Bar --- */
     .status-bar {
       height: 22px;
-      min-height: 22px;
       background-color: var(--accent);
       display: flex;
       align-items: center;
       justify-content: space-between;
-      padding: 0 15px;
+      padding: 0 12px;
       font-size: 11px;
       font-weight: 600;
       color: #fff;
-      z-index: 20; /* Above terminal */
+      z-index: 20;
       flex-shrink: 0;
     }
+
+    /* --- Context Menu --- */
+    #context-menu {
+      position: absolute;
+      background: rgba(45, 45, 45, 0.95);
+      backdrop-filter: blur(10px);
+      border: 1px solid var(--border);
+      box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+      border-radius: 8px;
+      display: none;
+      z-index: 2000;
+      width: 150px;
+      padding: 6px;
+      transform-origin: top left;
+      animation: menuPop 0.15s var(--ease-spring);
+    }
+    .ctx-item {
+      padding: 8px 10px;
+      font-size: 12px;
+      color: var(--text-main);
+      cursor: pointer;
+      border-radius: 4px;
+      transition: background 0.1s;
+    }
+    .ctx-item:hover { background-color: var(--accent); color: white; }
+    .ctx-sep { height: 1px; background: rgba(255,255,255,0.1); margin: 4px 0; }
   </style>
 </head>
 <body>
 
-  <!-- Tabs -->
   <div class="tabs-wrapper" id="tabs-container">
-    <div class="add-tab-btn" id="add-tab">+</div>
+    <div class="add-tab-btn" id="add-tab" title="New Tab"><i class="fas fa-plus"></i></div>
   </div>
 
-  <!-- Editor -->
   <div class="editor-container">
     <div id="editor"></div>
   </div>
 
-  <!-- Terminal (Overlay) -->
-  <div class="terminal-section smooth-transition" id="terminal">
+  <div class="terminal-section smooth" id="terminal">
     <div class="resize-handle" id="term-resizer"></div>
-
     <div class="term-header">
-      <div class="term-left-group">
+      <div class="term-left">
         <span class="term-title"><i class="fas fa-terminal"></i> Console</span>
         <div class="connection-status">
           <div id="socket-dot" class="status-dot disconnected"></div>
           <span id="socket-status-text">Disconnected</span>
         </div>
       </div>
-
       <div class="term-controls">
-        <i class="fas fa-ban" id="btn-clear" title="Clear Console"></i>
+        <i class="fas fa-ban" id="btn-clear" title="Clear Output"></i>
+        <!-- CHANGE: Arrow points down initially because it is open -->
         <i class="fas fa-chevron-down" id="btn-toggle" title="Toggle Size"></i>
       </div>
     </div>
     <div class="term-output" id="output-log">
-      <div class="log-entry log-sys">-- Waiting for Luma connection on localhost:48721...</div>
+      <div class="log-entry log-sys">-- Waiting for connection...</div>
     </div>
   </div>
 
-  <!-- Status Bar -->
   <div class="status-bar">
-    <span>Luma Environment</span>
+    <span><i class="fas fa-code-branch" style="margin-right:6px; opacity:0.8;"></i>Luma Environment</span>
     <span id="cursor-pos">Ln 1, Col 1</span>
+  </div>
+
+  <div id="context-menu">
+    <div class="ctx-item" id="ctx-rename"><i class="fas fa-pen" style="margin-right:8px; opacity:0.7;"></i> Rename</div>
+    <div class="ctx-sep"></div>
+    <div class="ctx-item" id="ctx-close"><i class="fas fa-times" style="margin-right:8px; opacity:0.7;"></i> Close</div>
+    <div class="ctx-item" id="ctx-close-others">Close Others</div>
   </div>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.36.1/min/vs/loader.min.js"></script>
 
   <script>
     let files = {}; 
-    let untitledCount = 1;
     let editor;
+    let socket = null;
+    let ctxTargetTab = null;
 
     function saveSession() {
       const activeTab = document.querySelector('.tab.active');
-      if (activeTab && editor) {
-        files[activeTab.dataset.file] = editor.getValue();
-      }
-      const tabs = document.querySelectorAll('.tab');
-      const tabOrder = Array.from(tabs).map(t => t.dataset.file);
-
+      if (activeTab && editor) files[activeTab.dataset.file] = editor.getValue();
+      const tabOrder = Array.from(document.querySelectorAll('.tab:not(.closing)')).map(t => t.dataset.file);
       const sessionData = {
         files: files,
         order: tabOrder,
-        activeId: activeTab ? activeTab.dataset.file : null,
-        count: untitledCount
+        activeId: activeTab ? activeTab.dataset.file : null
       };
       localStorage.setItem('luma_editor_session', JSON.stringify(sessionData));
     }
@@ -340,45 +395,50 @@
     function restoreSession() {
       const saved = localStorage.getItem('luma_editor_session');
       if (!saved) {
-        createTab('main', `-- Uranium Editor (Luma Mode)
--- Auto-Save Enabled.
--- The console is now an OVERLAY.
--- Drag the console top border to resize it over the editor.
+        createTab('Script1', `-- Console is now OPEN by default!
+-- You can collapse it using the arrow icon in the console header.
 
-print("Hello Luma!")
+-- Filesystem (Blue)
+writefile("test.txt", "Hello Luma")
+local content = readfile("test.txt")
+
+-- Metatables (Blue)
+local mt = getrawmetatable(game)
+setreadonly(mt, false)
+
+-- Custom Function (Yellow)
+testFunc()
+
+-- Variable (White/Grey)
+local myVar = 100
 `);
         return;
       }
-
       try {
         const data = JSON.parse(saved);
         files = data.files || {};
-        untitledCount = data.count || 1;
         const order = data.order || [];
 
         if (order.length === 0) {
-          createTab('main', 'print("Welcome back")');
+          createTab('Script1', 'print("Welcome back")');
           return;
         }
 
         order.forEach(id => {
-          if (files[id] !== undefined) {
-             const isActive = (id === data.activeId);
-             renderTab(id, isActive);
-          }
+          if (files[id] !== undefined) renderTab(id, id === data.activeId);
         });
 
-        if (data.activeId && files[data.activeId]) {
-           editor.setValue(files[data.activeId]);
-        } else if (order.length > 0) {
-           const firstId = order[0];
-           const tab = document.querySelector(`.tab[data-file="${firstId}"]`);
-           if(tab) tab.classList.add('active');
-           editor.setValue(files[firstId]);
+        const activeId = data.activeId || order[0];
+        if (files[activeId]) {
+             setTimeout(() => {
+                if(editor) editor.setValue(files[activeId]);
+                const t = document.querySelector(`.tab[data-file="${activeId}"]`);
+                if(t) t.classList.add('active');
+             }, 50);
         }
       } catch (e) {
         localStorage.removeItem('luma_editor_session');
-        createTab('main');
+        createTab('Script1');
       }
     }
 
@@ -386,16 +446,62 @@ print("Hello Luma!")
 
     require(['vs/editor/editor.main'], function () {
       monaco.languages.register({ id: 'luau' });
+
+      const exploitEnv = [
+        'readfile','writefile','appendfile','loadfile','listfiles','isfile','isfolder','makefolder','delfolder','delfile',
+        'getrawmetatable','setrawmetatable','setreadonly','isreadonly','isstruct','getnamecallmethod','setnamecallmethod','hookmetamethod','newcclosure','hookfunction',
+        'fireclickdetector','firetouchinterest','fireproximityprompt','getconnections','getnilinstances','getinstances','getplayers',
+        'getgenv','getrenv','getreg','getgc','getloadedmodules','checkcaller','clonefunction','islclosure','iscclosure','loadstring','identifyexecutor','getscriptbytecode','getscripthash',
+        'keypress','keyrelease','mouse1click','mouse1press','mouse1release','mouse2click','mouse2press','mouse2release','mousemoveabs','mousemoverel',
+        'rconsoleprint','rconsolewarn','rconsoleerr','rconsoleclear','rconsolename','setclipboard','toclipboard','lz4compress','lz4decompress','messagebox','setfpscap','getfpscap',
+        'Drawing','cleardrawcache','isrenderobj','getrenderproperty','setrenderproperty'
+      ];
+
+      monaco.languages.registerCompletionItemProvider('luau', {
+        provideCompletionItems: (model, position) => {
+          const suggestions = [
+            { label: 'Players', kind: monaco.languages.CompletionItemKind.Class, insertText: 'game:GetService("Players")' },
+            { label: 'ReplicatedStorage', kind: monaco.languages.CompletionItemKind.Class, insertText: 'game:GetService("ReplicatedStorage")' },
+            { label: 'UserInputService', kind: monaco.languages.CompletionItemKind.Class, insertText: 'game:GetService("UserInputService")' },
+            { label: 'TweenService', kind: monaco.languages.CompletionItemKind.Class, insertText: 'game:GetService("TweenService")' },
+            { label: 'RunService', kind: monaco.languages.CompletionItemKind.Class, insertText: 'game:GetService("RunService")' },
+            { label: 'HttpService', kind: monaco.languages.CompletionItemKind.Class, insertText: 'game:GetService("HttpService")' },
+            { label: 'Workspace', kind: monaco.languages.CompletionItemKind.Class, insertText: 'game:GetService("Workspace")' },
+            { label: 'CoreGui', kind: monaco.languages.CompletionItemKind.Class, insertText: 'game:GetService("CoreGui")' },
+            { label: 'game', kind: monaco.languages.CompletionItemKind.Module, insertText: 'game' },
+            { label: 'workspace', kind: monaco.languages.CompletionItemKind.Module, insertText: 'workspace' },
+            { label: 'task.wait', kind: monaco.languages.CompletionItemKind.Function, insertText: 'task.wait(${1})', insertTextRules: 4 },
+            { label: 'print', kind: monaco.languages.CompletionItemKind.Function, insertText: 'print("${1}")', insertTextRules: 4 },
+          ];
+
+          exploitEnv.forEach(func => {
+              suggestions.push({
+                  label: func,
+                  kind: monaco.languages.CompletionItemKind.Function,
+                  insertText: func,
+                  detail: 'Exploit Environment'
+              });
+          });
+
+          return { suggestions: suggestions };
+        }
+      });
+
+      const exploitRegex = new RegExp(`\\b(${exploitEnv.join('|')})\\b`);
+
       monaco.languages.setMonarchTokensProvider('luau', {
         tokenizer: {
           root: [
+            [/--.*$/, 'comment'],
             [/\b(function|if|then|else|elseif|end|return|for|while|do|repeat|until|and|or|not|local|nil|false|true|break|in|continue|type|export|typeof)\b/, 'keyword'],
-            [/\b(print|warn|error|assert|tonumber|tostring|math|table|string|task|os|debug|getgenv)\b/, 'function'],
+            [/\b(print|warn|error|assert|collectgarbage|require|dofile|getfenv|setfenv|ipairs|pairs|next|pcall|xpcall|select|tonumber|tostring|type|unpack|_VERSION|game|workspace|delay|spawn|elapsedTime|time|tick|settings|shared|_G|math|table|string|coroutine|os|debug|task|bit32|utf8)\b/, 'builtin.blue'],
+            [exploitRegex, 'builtin.blue'],
+            [/[a-zA-Z_]\w*(?=\s*\()/, 'function.call'],
             [/"([^"\\]|\\.)*$/, 'string.invalid'],
             [/"/, { token: 'string.quote', bracket: '@open', next: '@string_double' }],
             [/'/, { token: 'string.quote', bracket: '@open', next: '@string_single' }],
             [/\b\d+(\.\d+)?\b/, 'number'],
-            [/--.*$/, 'comment'],
+            [/[a-zA-Z_]\w*/, 'identifier'],
           ],
           string_double: [[/[^\\"]+/, 'string'], [/"/, { token: 'string.quote', bracket: '@close', next: '@pop' }]],
           string_single: [[/[^\\']+/, 'string'], [/'/, { token: 'string.quote', bracket: '@close', next: '@pop' }]]
@@ -406,20 +512,22 @@ print("Hello Luma!")
         base: 'vs-dark',
         inherit: true,
         rules: [
-          { token: 'keyword', foreground: 'c678dd', fontStyle: 'bold' },
-          { token: 'function', foreground: '61afef' },
-          { token: 'string', foreground: '98c379' },
-          { token: 'number', foreground: 'd19a66' },
-          { token: 'comment', foreground: '5c6370', fontStyle: 'italic' },
+          { token: 'keyword', foreground: 'C586C0' },
+          { token: 'builtin.blue', foreground: '66d9ef' },
+          { token: 'function.call', foreground: 'DCDCAA' },
+          { token: 'identifier', foreground: 'd4d4d4' },
+          { token: 'string', foreground: 'CE9178' },
+          { token: 'number', foreground: 'B5CEA8' },
+          { token: 'comment', foreground: '6A9955', fontStyle: 'italic' },
         ],
         colors: {
-          'editor.background': '#1c1c1c',
-          'editor.foreground': '#abb2bf',
-          'editor.lineHighlightBackground': '#2c313a',
-          'editor.selectionBackground': '#3e4451',
-          'editorCursor.foreground': '#528bff',
-          'editorLineNumber.foreground': '#4b5263',
-          'editorIndentGuide.background': '#3b4048'
+          'editor.background': '#1e1e1e',
+          'editor.foreground': '#d4d4d4',
+          'editor.lineHighlightBackground': '#2f333d',
+          'editor.selectionBackground': '#264f78',
+          'editorCursor.foreground': '#ffffff',
+          'editorLineNumber.foreground': '#858585',
+          'editorIndentGuide.background': '#404040'
         }
       });
 
@@ -429,18 +537,17 @@ print("Hello Luma!")
         theme: 'uranium-graphite',
         fontSize: 14,
         fontFamily: "'JetBrains Mono', Consolas, monospace",
-        minimap: { enabled: false },
+        minimap: { enabled: true, renderCharacters: false },
         automaticLayout: true,
         padding: { top: 15 },
-        renderLineHighlight: 'all',
         cursorBlinking: 'smooth',
-        cursorSmoothCaretAnimation: 'on'
+        cursorSmoothCaretAnimation: 'on',
+        smoothScrolling: true
       });
 
       editor.onDidChangeCursorPosition(e => {
         document.getElementById('cursor-pos').textContent = `Ln ${e.position.lineNumber}, Col ${e.position.column}`;
       });
-
       editor.onDidChangeModelContent(() => { saveSession(); });
       restoreSession();
     });
@@ -452,76 +559,29 @@ print("Hello Luma!")
       const newTab = document.createElement('div');
       newTab.className = isActive ? 'tab active' : 'tab';
       newTab.dataset.file = id;
-      newTab.innerHTML = `<i class="fas fa-file-code" style="color: #00a2ff; font-size: 11px;"></i><span class="tab-name">${id}.luau</span><span class="tab-close">×</span>`;
+      newTab.innerHTML = `<i class="fas fa-file-code" style="color: #007acc; font-size: 11px;"></i><span class="tab-name">${id}.luau</span><span class="tab-close"><i class="fas fa-times"></i></span>`;
       tabsContainer.insertBefore(newTab, addTabBtn);
       if(isActive) setTimeout(() => newTab.scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 50);
     }
 
     addTabBtn.addEventListener('click', () => createTab());
-    
-    tabsContainer.addEventListener('click', (e) => {
-      const tab = e.target.closest('.tab');
-      if (!tab) return;
-      if (e.target.tagName === 'INPUT') return; 
 
-      if (e.target.classList.contains('tab-close')) {
-        e.stopPropagation();
-        closeTab(tab);
-      } else {
-        switchTab(tab);
+    function getNextScriptName() {
+      let i = 1;
+      while (files[`Script${i}`] !== undefined) {
+        i++;
       }
-    });
-
-    tabsContainer.addEventListener('dblclick', (e) => {
-        const tab = e.target.closest('.tab');
-        if (!tab || e.target.classList.contains('tab-close')) return;
-
-        const nameSpan = tab.querySelector('.tab-name');
-        if(!nameSpan) return; 
-
-        const oldId = tab.dataset.file;
-        const currentText = oldId; 
-
-        const input = document.createElement('input');
-        input.type = 'text';
-        input.value = currentText;
-        input.className = 'rename-input';
-        
-        nameSpan.replaceWith(input);
-        input.focus();
-        input.select();
-
-        const finishRename = () => {
-            const newName = input.value.trim().replace(/[^a-zA-Z0-9_-]/g, '');
-            const newSpan = document.createElement('span');
-            newSpan.className = 'tab-name';
-            
-            if (newName && newName !== oldId && !files[newName]) {
-                files[newName] = files[oldId];
-                delete files[oldId];
-                tab.dataset.file = newName;
-                newSpan.textContent = newName + '.luau';
-                saveSession();
-            } else {
-                newSpan.textContent = oldId + '.luau';
-            }
-            if(input.parentNode) input.replaceWith(newSpan);
-        };
-
-        input.addEventListener('blur', finishRename);
-        input.addEventListener('keydown', (e) => {
-            if(e.key === 'Enter') input.blur(); 
-            else if(e.key === 'Escape') { input.value = oldId; input.blur(); }
-        });
-    });
+      return `Script${i}`;
+    }
 
     function createTab(name = null, content = null) {
       const current = document.querySelector('.tab.active');
       if(current && editor) files[current.dataset.file] = editor.getValue();
-
-      const id = name ? name : `script${untitledCount++}`;
+      
+      const id = name ? name : getNextScriptName();
+      
       if (!files[id]) files[id] = content !== null ? content : `print("New Script ${id}")`;
-
+      
       document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
       renderTab(id, true);
       editor.setValue(files[id]);
@@ -530,144 +590,122 @@ print("Hello Luma!")
 
     function switchTab(tab) {
       const old = document.querySelector('.tab.active');
-      if(old && editor) { 
-          files[old.dataset.file] = editor.getValue(); 
-          old.classList.remove('active'); 
-      }
+      if(old === tab) return;
+      if(old && editor) { files[old.dataset.file] = editor.getValue(); old.classList.remove('active'); }
       tab.classList.add('active');
       editor.setValue(files[tab.dataset.file] || "");
       saveSession(); 
     }
 
     function closeTab(tab) {
-      if(document.querySelectorAll('.tab').length === 1) return;
-      tab.style.transform = 'scale(0.9)';
-      tab.style.opacity = '0';
-      tab.style.width = '0';
-      tab.style.padding = '0';
-      setTimeout(() => {
-        delete files[tab.dataset.file];
-        if(tab.classList.contains('active')) {
-          const target = tab.previousElementSibling || tab.nextElementSibling;
-          if(target && target.classList.contains('tab')) switchTab(target);
-        }
-        tab.remove();
-        saveSession();
-      }, 200);
+      if(document.querySelectorAll('.tab:not(.closing)').length === 1) return;
+      tab.classList.add('closing');
+      if(tab.classList.contains('active')) {
+        let target = tab.previousElementSibling;
+        if (!target || !target.classList.contains('tab')) target = tab.nextElementSibling;
+        if(target && target.classList.contains('tab') && !target.classList.contains('closing')) switchTab(target);
+      }
+      delete files[tab.dataset.file];
+      saveSession();
+      setTimeout(() => tab.remove(), 250);
     }
+
+    function renameTab(tab) {
+        const nameSpan = tab.querySelector('.tab-name');
+        const oldId = tab.dataset.file;
+        const input = document.createElement('input');
+        input.type = 'text';
+        input.value = oldId;
+        input.className = 'rename-input';
+        nameSpan.replaceWith(input);
+        input.focus();
+        input.select();
+        const finish = () => {
+            const newName = input.value.trim().replace(/[^a-zA-Z0-9_-]/g, '');
+            const newSpan = document.createElement('span');
+            newSpan.className = 'tab-name';
+            if (newName && newName !== oldId && !files[newName]) {
+                files[newName] = files[oldId];
+                delete files[oldId];
+                tab.dataset.file = newName;
+                newSpan.textContent = newName + '.luau';
+                saveSession();
+            } else { newSpan.textContent = oldId + '.luau'; }
+            if(input.parentNode) input.replaceWith(newSpan);
+        };
+        input.addEventListener('blur', finish);
+        input.addEventListener('keydown', (e) => { if(e.key === 'Enter') finish(); if(e.key === 'Escape') { input.value = oldId; finish(); } });
+    }
+
+    tabsContainer.addEventListener('mousedown', (e) => {
+        const tab = e.target.closest('.tab');
+        if(!tab) return;
+        if (e.button === 0) {
+            if (e.target.closest('.tab-close')) closeTab(tab);
+            else switchTab(tab);
+        } else if (e.button === 2) {
+            e.preventDefault();
+            ctxTargetTab = tab;
+            showContextMenu(e.clientX, e.clientY);
+        }
+    });
+
+    tabsContainer.addEventListener('dblclick', (e) => {
+        const tab = e.target.closest('.tab');
+        if(tab && !e.target.closest('.tab-close')) renameTab(tab);
+    });
+
+    const ctxMenu = document.getElementById('context-menu');
+    function showContextMenu(x, y) { ctxMenu.style.left = x + 'px'; ctxMenu.style.top = y + 'px'; ctxMenu.style.display = 'block'; }
+    document.addEventListener('click', (e) => { if(!ctxMenu.contains(e.target)) ctxMenu.style.display = 'none'; });
+    document.getElementById('ctx-rename').addEventListener('click', () => { if(ctxTargetTab) renameTab(ctxTargetTab); });
+    document.getElementById('ctx-close').addEventListener('click', () => { if(ctxTargetTab) closeTab(ctxTargetTab); });
+    document.getElementById('ctx-close-others').addEventListener('click', () => {
+        if(!ctxTargetTab) return;
+        document.querySelectorAll('.tab').forEach(t => { if(t !== ctxTargetTab) closeTab(t); });
+        switchTab(ctxTargetTab);
+    });
 
     const outputLog = document.getElementById('output-log');
     const statusText = document.getElementById('socket-status-text');
     const statusDot = document.getElementById('socket-dot');
-    let socket = null;
-
+    
     function log(msg, type = 'print') {
       const div = document.createElement('div');
-      let className = 'log-print'; 
-      if (type.includes('warn')) className = 'log-warn'; 
-      if (type.includes('error') || type.includes('err')) className = 'log-error'; 
-      if (type === 'sys') className = 'log-sys'; 
-
-      div.className = `log-entry ${className}`;
-      const time = new Date().toLocaleTimeString('en-US', { hour12: false, hour: "numeric", minute: "numeric", second: "numeric" });
+      div.className = `log-entry log-${type}`;
+      const time = new Date().toLocaleTimeString('en-US', { hour12: false });
       div.innerText = `[${time}] ${msg}`;
       outputLog.appendChild(div);
-      requestAnimationFrame(() => outputLog.scrollTop = outputLog.scrollHeight);
+      outputLog.scrollTop = outputLog.scrollHeight;
     }
 
     function connectSocket() {
       socket = new WebSocket("ws://localhost:48721");
-      socket.onopen = () => {
-        statusText.innerText = "Connected";
-        statusDot.classList.remove('disconnected');
-        statusDot.classList.add('connected');
-        log("Connected to Luma", 'sys');
-      };
-      socket.onmessage = (event) => {
-        const raw = event.data;
-        try {
-          const data = JSON.parse(raw);
-          let type = data.type || data.level || 'print';
-          let message = data.message || data.content || data.msg || raw;
-          log(message, type);
-        } catch (e) {
-          let type = 'print';
-          if(raw.toLowerCase().startsWith('warn')) type = 'warn';
-          if(raw.toLowerCase().startsWith('error')) type = 'error';
-          log(raw, type);
-        }
-      };
-      socket.onclose = () => {
-        statusText.innerText = "Disconnected";
-        statusDot.classList.remove('connected');
-        statusDot.classList.add('disconnected');
-        setTimeout(connectSocket, 3000);
-      };
+      socket.onopen = () => { statusText.innerText = "Connected"; statusDot.className = 'status-dot connected'; log("Luma Connected", 'sys'); };
+      socket.onmessage = (event) => { try { const data = JSON.parse(event.data); log(data.message || event.data, data.type || 'print'); } catch { log(event.data, 'print'); } };
+      socket.onclose = () => { statusText.innerText = "Disconnected"; statusDot.className = 'status-dot disconnected'; setTimeout(connectSocket, 3000); };
     }
-
     connectSocket();
+    document.getElementById('btn-clear').addEventListener('click', () => outputLog.innerHTML = '');
 
-    document.getElementById('btn-clear').addEventListener('click', () => { outputLog.innerHTML = ''; });
-    
-    // --- Toggle & Resizing Logic (OVERLAY) ---
-    let termOpen = true;
     const terminal = document.getElementById('terminal');
-    const resizer = document.getElementById('term-resizer');
     const toggleBtn = document.getElementById('btn-toggle');
-    
-    toggleBtn.addEventListener('click', function() {
-      terminal.classList.add('smooth-transition');
-      if(termOpen) {
-        terminal.style.height = '32px'; 
-        this.style.transform = 'rotate(180deg)';
-      } else {
-        terminal.style.height = '250px';
-        this.style.transform = 'rotate(0deg)';
-      }
-      termOpen = !termOpen;
-      // Note: No editor.layout() needed here as editor is not resized!
+    const resizer = document.getElementById('term-resizer');
+    // CHANGE: Track termOpen as true by default
+    let termOpen = true;
+
+    toggleBtn.addEventListener('click', () => {
+        terminal.classList.add('smooth');
+        if(termOpen) { terminal.style.height = '32px'; toggleBtn.className = 'fas fa-chevron-up'; } 
+        else { terminal.style.height = '200px'; toggleBtn.className = 'fas fa-chevron-down'; }
+        termOpen = !termOpen;
     });
 
     let isResizing = false;
-    let startY, startHeight;
-
-    resizer.addEventListener('mousedown', (e) => {
-        isResizing = true;
-        startY = e.clientY;
-        startHeight = parseInt(getComputedStyle(terminal).height, 10);
-        terminal.classList.remove('smooth-transition');
-        resizer.classList.add('active');
-        document.body.style.cursor = 'ns-resize';
-        document.body.style.userSelect = 'none';
-    });
-
-    document.addEventListener('mousemove', (e) => {
-        if (!isResizing) return;
-        const delta = startY - e.clientY; // Up is positive for bottom-anchored element
-        const newHeight = startHeight + delta;
-
-        // Constraint: Don't grow larger than 90% of screen
-        const maxHeight = window.innerHeight * 0.9;
-
-        if (newHeight > 32 && newHeight < maxHeight) {
-            terminal.style.height = `${newHeight}px`;
-            
-            if (newHeight > 40 && !termOpen) {
-                termOpen = true;
-                toggleBtn.style.transform = 'rotate(0deg)';
-            }
-        }
-    });
-
-    document.addEventListener('mouseup', () => {
-        if (isResizing) {
-            isResizing = false;
-            terminal.classList.add('smooth-transition');
-            resizer.classList.remove('active');
-            document.body.style.cursor = '';
-            document.body.style.userSelect = '';
-        }
-    });
+    let startY, startH;
+    resizer.addEventListener('mousedown', (e) => { isResizing = true; startY = e.clientY; startH = parseInt(getComputedStyle(terminal).height); terminal.classList.remove('smooth'); document.body.style.cursor = 'ns-resize'; });
+    window.addEventListener('mousemove', (e) => { if(!isResizing) return; const newH = startH + (startY - e.clientY); if(newH > 32 && newH < window.innerHeight * 0.9) { terminal.style.height = newH + 'px'; if(newH > 40 && !termOpen) { termOpen = true; toggleBtn.className = 'fas fa-chevron-down'; } } });
+    window.addEventListener('mouseup', () => { isResizing = false; document.body.style.cursor = ''; });
   </script>
 </body>
 </html>
