@@ -40,7 +40,8 @@
       display: flex;
       flex-direction: column;
       overflow: hidden;
-      user-select: none;
+      /* Disable selection globally for UI feel */
+      user-select: none; 
     }
 
     /* --- Animations --- */
@@ -70,23 +71,17 @@
       background-color: var(--bg-header);
       display: flex;
       align-items: flex-end;
-      overflow-x: auto; /* Enable native scrolling */
-      scrollbar-width: none; /* Hide scrollbar Firefox */
+      overflow-x: auto;
+      scrollbar-width: none;
       height: 42px;
       min-height: 42px;
       padding: 0 10px;
       padding-top: 6px;
       z-index: 20;
       animation: slideUpFade 0.5s var(--ease-smooth);
-      
-      /* Smooth native scroll behavior */
       scroll-behavior: smooth;
     }
-
-    /* Hide scrollbar Chrome/Safari/Edge */
-    .tabs-wrapper::-webkit-scrollbar {
-      display: none;
-    }
+    .tabs-wrapper::-webkit-scrollbar { display: none; }
 
     .tab {
       background-color: transparent;
@@ -107,7 +102,7 @@
       transition: background 0.2s, color 0.2s, transform 0.2s;
       animation: tabOpen 0.3s var(--ease-spring) forwards;
       transform-origin: bottom center;
-      flex-shrink: 0; /* Prevent shrinking when overflowing */
+      flex-shrink: 0;
     }
 
     .tab.closing {
@@ -174,7 +169,7 @@
       margin-left: 5px;
       margin-bottom: 2px;
       transition: all 0.2s;
-      flex-shrink: 0; /* Don't shrink the button */
+      flex-shrink: 0;
     }
     .add-tab-btn:hover { color: #fff; background-color: rgba(255,255,255,0.08); transform: rotate(90deg); }
 
@@ -196,7 +191,7 @@
       bottom: 22px;
       left: 0;
       right: 0;
-      height: 200px;
+      height: 200px; /* Default Open */
       background-color: var(--bg-terminal);
       border-top: 1px solid var(--border);
       display: flex;
@@ -226,6 +221,7 @@
       justify-content: space-between;
       background-color: #202020;
       border-bottom: 1px solid var(--border);
+      user-select: none; /* Keep header unselectable */
     }
     .term-left { display: flex; align-items: center; gap: 15px; }
 
@@ -275,6 +271,11 @@
       font-family: 'JetBrains Mono', monospace;
       font-size: 13px;
       scroll-behavior: smooth;
+      
+      /* --- FIX: ENABLE SELECTION --- */
+      user-select: text; 
+      -webkit-user-select: text;
+      cursor: text;
     }
 
     ::-webkit-scrollbar { width: 8px; height: 8px; }
@@ -412,18 +413,14 @@
     function restoreSession() {
       const saved = localStorage.getItem('luma_editor_session');
       if (!saved) {
-        createTab('Script1', `-- Scroll tabs with Mouse Wheel!
--- Console is Open by default.
+        createTab('Script1', `-- You can now copy text from the Console!
 
 writefile("test.txt", "Hello Luma")
 local content = readfile("test.txt")
+print(content)
 
-local mt = getrawmetatable(game)
-setreadonly(mt, false)
-
-testFunc()
-
-local myVar = 100
+warn("This is a warning log")
+error("This is an error log")
 `);
         return;
       }
