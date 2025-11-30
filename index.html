@@ -70,14 +70,22 @@
       background-color: var(--bg-header);
       display: flex;
       align-items: flex-end;
-      overflow-x: auto;
-      scrollbar-width: none;
+      overflow-x: auto; /* Enable native scrolling */
+      scrollbar-width: none; /* Hide scrollbar Firefox */
       height: 42px;
       min-height: 42px;
       padding: 0 10px;
       padding-top: 6px;
       z-index: 20;
       animation: slideUpFade 0.5s var(--ease-smooth);
+      
+      /* Smooth native scroll behavior */
+      scroll-behavior: smooth;
+    }
+
+    /* Hide scrollbar Chrome/Safari/Edge */
+    .tabs-wrapper::-webkit-scrollbar {
+      display: none;
     }
 
     .tab {
@@ -99,6 +107,7 @@
       transition: background 0.2s, color 0.2s, transform 0.2s;
       animation: tabOpen 0.3s var(--ease-spring) forwards;
       transform-origin: bottom center;
+      flex-shrink: 0; /* Prevent shrinking when overflowing */
     }
 
     .tab.closing {
@@ -165,6 +174,7 @@
       margin-left: 5px;
       margin-bottom: 2px;
       transition: all 0.2s;
+      flex-shrink: 0; /* Don't shrink the button */
     }
     .add-tab-btn:hover { color: #fff; background-color: rgba(255,255,255,0.08); transform: rotate(90deg); }
 
@@ -186,7 +196,6 @@
       bottom: 22px;
       left: 0;
       right: 0;
-      /* CHANGE: Start with height 200px (Open) */
       height: 200px;
       background-color: var(--bg-terminal);
       border-top: 1px solid var(--border);
@@ -351,7 +360,6 @@
       </div>
       <div class="term-controls">
         <i class="fas fa-ban" id="btn-clear" title="Clear Output"></i>
-        <!-- CHANGE: Arrow points down initially because it is open -->
         <i class="fas fa-chevron-down" id="btn-toggle" title="Toggle Size"></i>
       </div>
     </div>
@@ -380,6 +388,15 @@
     let socket = null;
     let ctxTargetTab = null;
 
+    // --- Tab Scroll Logic (Mouse Wheel) ---
+    const tabsContainer = document.getElementById('tabs-container');
+    tabsContainer.addEventListener('wheel', (e) => {
+        if (e.deltaY !== 0) {
+            e.preventDefault();
+            tabsContainer.scrollLeft += e.deltaY;
+        }
+    });
+
     function saveSession() {
       const activeTab = document.querySelector('.tab.active');
       if (activeTab && editor) files[activeTab.dataset.file] = editor.getValue();
@@ -395,21 +412,17 @@
     function restoreSession() {
       const saved = localStorage.getItem('luma_editor_session');
       if (!saved) {
-        createTab('Script1', `-- Console is now OPEN by default!
--- You can collapse it using the arrow icon in the console header.
+        createTab('Script1', `-- Scroll tabs with Mouse Wheel!
+-- Console is Open by default.
 
--- Filesystem (Blue)
 writefile("test.txt", "Hello Luma")
 local content = readfile("test.txt")
 
--- Metatables (Blue)
 local mt = getrawmetatable(game)
 setreadonly(mt, false)
 
--- Custom Function (Yellow)
 testFunc()
 
--- Variable (White/Grey)
 local myVar = 100
 `);
         return;
@@ -552,7 +565,6 @@ local myVar = 100
       restoreSession();
     });
 
-    const tabsContainer = document.getElementById('tabs-container');
     const addTabBtn = document.getElementById('add-tab');
 
     function renderTab(id, isActive) {
@@ -691,7 +703,6 @@ local myVar = 100
     const terminal = document.getElementById('terminal');
     const toggleBtn = document.getElementById('btn-toggle');
     const resizer = document.getElementById('term-resizer');
-    // CHANGE: Track termOpen as true by default
     let termOpen = true;
 
     toggleBtn.addEventListener('click', () => {
