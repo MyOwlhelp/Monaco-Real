@@ -92,7 +92,8 @@
       display: flex;
       align-items: center;
       gap: 8px;
-      border-radius: 8px 8px 0 0;
+      /* ROUNDING UPDATE: Slightly rounder tabs */
+      border-radius: 10px 10px 0 0;
       margin-right: 4px;
       border: 1px solid transparent;
       min-width: 140px;
@@ -137,7 +138,8 @@
       width: 100%;
       outline: none;
       padding: 2px 4px;
-      border-radius: 4px;
+      /* ROUNDING UPDATE */
+      border-radius: 6px;
     }
 
     .tab-close {
@@ -148,7 +150,8 @@
       display: flex;
       align-items: center;
       justify-content: center;
-      border-radius: 4px;
+      /* ROUNDING UPDATE */
+      border-radius: 6px;
       transform: scale(0.8);
       transition: all 0.2s var(--ease-spring);
     }
@@ -164,7 +167,8 @@
       color: var(--text-muted);
       cursor: pointer;
       font-size: 14px;
-      border-radius: 6px;
+      /* ROUNDING UPDATE */
+      border-radius: 8px;
       margin-left: 5px;
       margin-bottom: 2px;
       transition: all 0.2s;
@@ -192,6 +196,8 @@
       right: 0;
       height: 200px; /* Default Open */
       background-color: var(--bg-terminal);
+      /* ROUNDING UPDATE: Round top corners of terminal */
+      border-radius: 12px 12px 0 0;
       border-top: 1px solid var(--border);
       display: flex;
       flex-direction: column;
@@ -220,6 +226,8 @@
       justify-content: space-between;
       background-color: #202020;
       border-bottom: 1px solid var(--border);
+      /* ROUNDING UPDATE: Match parent rounding */
+      border-radius: 12px 12px 0 0;
       user-select: none;
     }
     .term-left { display: flex; align-items: center; gap: 15px; }
@@ -269,7 +277,8 @@
       color: var(--text-muted);
       font-size: 12px;
       transition: all 0.2s;
-      border-radius: 4px;
+      /* ROUNDING UPDATE */
+      border-radius: 6px;
     }
     .term-controls i:hover { color: #fff; background: rgba(255,255,255,0.1); transform: scale(1.1); }
 
@@ -311,7 +320,8 @@
       backdrop-filter: blur(10px);
       border: 1px solid var(--border);
       box-shadow: 0 10px 30px rgba(0,0,0,0.5);
-      border-radius: 8px;
+      /* ROUNDING UPDATE */
+      border-radius: 12px;
       display: none;
       z-index: 2000;
       width: 150px;
@@ -324,7 +334,8 @@
       font-size: 12px;
       color: var(--text-main);
       cursor: pointer;
-      border-radius: 4px;
+      /* ROUNDING UPDATE */
+      border-radius: 6px;
       transition: background 0.1s;
     }
     .ctx-item:hover { background-color: var(--accent); color: white; }
