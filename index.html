@@ -40,7 +40,6 @@
       display: flex;
       flex-direction: column;
       overflow: hidden;
-      /* Disable selection globally for UI feel */
       user-select: none; 
     }
 
@@ -188,7 +187,7 @@
     /* --- Terminal --- */
     .terminal-section {
       position: absolute;
-      bottom: 22px;
+      bottom: 0;
       left: 0;
       right: 0;
       height: 200px; /* Default Open */
@@ -221,9 +220,10 @@
       justify-content: space-between;
       background-color: #202020;
       border-bottom: 1px solid var(--border);
-      user-select: none; /* Keep header unselectable */
+      user-select: none;
     }
     .term-left { display: flex; align-items: center; gap: 15px; }
+    .term-right { display: flex; align-items: center; gap: 15px; }
 
     .term-title {
       font-size: 11px;
@@ -234,6 +234,15 @@
       display: flex;
       align-items: center;
       gap: 8px;
+    }
+
+    .cursor-info {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      color: var(--text-muted);
+      opacity: 0.8;
+      border-right: 1px solid rgba(255,255,255,0.1);
+      padding-right: 15px;
     }
 
     .connection-status {
@@ -271,8 +280,6 @@
       font-family: 'JetBrains Mono', monospace;
       font-size: 13px;
       scroll-behavior: smooth;
-      
-      /* --- FIX: ENABLE SELECTION --- */
       user-select: text; 
       -webkit-user-select: text;
       cursor: text;
@@ -296,21 +303,6 @@
     .log-warn { color: var(--log-warn); }
     .log-error { color: var(--log-error); }
     .log-sys { color: var(--log-sys); font-style: italic; font-size: 12px; }
-
-    /* --- Status Bar --- */
-    .status-bar {
-      height: 22px;
-      background-color: var(--accent);
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding: 0 12px;
-      font-size: 11px;
-      font-weight: 600;
-      color: #fff;
-      z-index: 20;
-      flex-shrink: 0;
-    }
 
     /* --- Context Menu --- */
     #context-menu {
@@ -359,19 +351,17 @@
           <span id="socket-status-text">Disconnected</span>
         </div>
       </div>
-      <div class="term-controls">
-        <i class="fas fa-ban" id="btn-clear" title="Clear Output"></i>
-        <i class="fas fa-chevron-down" id="btn-toggle" title="Toggle Size"></i>
+      <div class="term-right">
+        <span id="cursor-pos" class="cursor-info">Ln 1, Col 1</span>
+        <div class="term-controls">
+          <i class="fas fa-ban" id="btn-clear" title="Clear Output"></i>
+          <i class="fas fa-chevron-down" id="btn-toggle" title="Toggle Size"></i>
+        </div>
       </div>
     </div>
     <div class="term-output" id="output-log">
       <div class="log-entry log-sys">-- Waiting for connection...</div>
     </div>
-  </div>
-
-  <div class="status-bar">
-    <span><i class="fas fa-code-branch" style="margin-right:6px; opacity:0.8;"></i>Luma Environment</span>
-    <span id="cursor-pos">Ln 1, Col 1</span>
   </div>
 
   <div id="context-menu">
@@ -388,8 +378,10 @@
     let editor;
     let socket = null;
     let ctxTargetTab = null;
+    let activeTabId = null;
+    let isSilent = false;
 
-    // --- Tab Scroll Logic (Mouse Wheel) ---
+    // --- Tab Scroll Logic ---
     const tabsContainer = document.getElementById('tabs-container');
     tabsContainer.addEventListener('wheel', (e) => {
         if (e.deltaY !== 0) {
@@ -399,13 +391,17 @@
     });
 
     function saveSession() {
-      const activeTab = document.querySelector('.tab.active');
-      if (activeTab && editor) files[activeTab.dataset.file] = editor.getValue();
+      // 1. Save currently active tab content to memory
+      if (activeTabId && files[activeTabId] !== undefined && editor && !isSilent) {
+        files[activeTabId] = editor.getValue();
+      }
+
+      // 2. Persist to storage
       const tabOrder = Array.from(document.querySelectorAll('.tab:not(.closing)')).map(t => t.dataset.file);
       const sessionData = {
         files: files,
         order: tabOrder,
-        activeId: activeTab ? activeTab.dataset.file : null
+        activeId: activeTabId
       };
       localStorage.setItem('luma_editor_session', JSON.stringify(sessionData));
     }
@@ -413,15 +409,8 @@
     function restoreSession() {
       const saved = localStorage.getItem('luma_editor_session');
       if (!saved) {
-        createTab('Script1', `-- You can now copy text from the Console!
-
-writefile("test.txt", "Hello Luma")
-local content = readfile("test.txt")
-print(content)
-
-warn("This is a warning log")
-error("This is an error log")
-`);
+        // CHANGED: Default content is now "Hello, world!"
+        createTab('Script1', 'print("Hello, world!")');
         return;
       }
       try {
@@ -438,15 +427,23 @@ error("This is an error log")
           if (files[id] !== undefined) renderTab(id, id === data.activeId);
         });
 
-        const activeId = data.activeId || order[0];
-        if (files[activeId]) {
+        const targetId = data.activeId || order[0];
+        activeTabId = targetId;
+
+        document.querySelectorAll('.tab').forEach(t => {
+            if(t.dataset.file === activeTabId) t.classList.add('active');
+            else t.classList.remove('active');
+        });
+
+        if (files[activeTabId] && editor) {
              setTimeout(() => {
-                if(editor) editor.setValue(files[activeId]);
-                const t = document.querySelector(`.tab[data-file="${activeId}"]`);
-                if(t) t.classList.add('active');
+                isSilent = true;
+                editor.setValue(files[activeTabId]);
+                isSilent = false;
              }, 50);
         }
       } catch (e) {
+        console.error(e);
         localStorage.removeItem('luma_editor_session');
         createTab('Script1');
       }
@@ -584,8 +581,9 @@ error("This is an error log")
     }
 
     function createTab(name = null, content = null) {
-      const current = document.querySelector('.tab.active');
-      if(current && editor) files[current.dataset.file] = editor.getValue();
+      if(activeTabId && files[activeTabId] !== undefined && editor) {
+          files[activeTabId] = editor.getValue();
+      }
       
       const id = name ? name : getNextScriptName();
       
@@ -593,28 +591,56 @@ error("This is an error log")
       
       document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
       renderTab(id, true);
+      
+      activeTabId = id;
+      
+      isSilent = true;
       editor.setValue(files[id]);
+      isSilent = false;
+      
       saveSession(); 
     }
 
     function switchTab(tab) {
-      const old = document.querySelector('.tab.active');
-      if(old === tab) return;
-      if(old && editor) { files[old.dataset.file] = editor.getValue(); old.classList.remove('active'); }
+      const newId = tab.dataset.file;
+      if(activeTabId === newId) return;
+
+      if(activeTabId && files[activeTabId] !== undefined && editor) {
+          files[activeTabId] = editor.getValue();
+          const old = document.querySelector(`.tab[data-file="${activeTabId}"]`);
+          if(old) old.classList.remove('active');
+      }
+
       tab.classList.add('active');
-      editor.setValue(files[tab.dataset.file] || "");
+      activeTabId = newId;
+
+      isSilent = true;
+      editor.setValue(files[activeTabId] || "");
+      isSilent = false;
+      
       saveSession(); 
     }
 
     function closeTab(tab) {
+      const id = tab.dataset.file;
       if(document.querySelectorAll('.tab:not(.closing)').length === 1) return;
+      
       tab.classList.add('closing');
-      if(tab.classList.contains('active')) {
+      
+      if(id === activeTabId) {
         let target = tab.previousElementSibling;
         if (!target || !target.classList.contains('tab')) target = tab.nextElementSibling;
-        if(target && target.classList.contains('tab') && !target.classList.contains('closing')) switchTab(target);
+        
+        if(target && target.classList.contains('tab') && !target.classList.contains('closing')) {
+           activeTabId = target.dataset.file;
+           target.classList.add('active');
+           isSilent = true;
+           editor.setValue(files[activeTabId] || "");
+           isSilent = false;
+        }
       }
-      delete files[tab.dataset.file];
+
+      delete files[id];
       saveSession();
       setTimeout(() => tab.remove(), 250);
     }
@@ -633,13 +659,22 @@ error("This is an error log")
             const newName = input.value.trim().replace(/[^a-zA-Z0-9_-]/g, '');
             const newSpan = document.createElement('span');
             newSpan.className = 'tab-name';
-            if (newName && newName !== oldId && !files[newName]) {
-                files[newName] = files[oldId];
-                delete files[oldId];
-                tab.dataset.file = newName;
-                newSpan.textContent = newName + '.luau';
-                saveSession();
-            } else { newSpan.textContent = oldId + '.luau'; }
+            
+            if (newName && newName !== oldId) {
+                if(!files[newName]) {
+                    files[newName] = files[oldId];
+                    delete files[oldId];
+                    tab.dataset.file = newName;
+                    newSpan.textContent = newName + '.luau';
+                    if(activeTabId === oldId) activeTabId = newName;
+                    saveSession();
+                } else {
+                    newSpan.textContent = oldId + '.luau';
+                }
+            } else { 
+                newSpan.textContent = oldId + '.luau'; 
+            }
+            
             if(input.parentNode) input.replaceWith(newSpan);
         };
         input.addEventListener('blur', finish);
