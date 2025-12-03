@@ -723,10 +723,10 @@
       const time = new Date().toLocaleTimeString('en-US', { hour12: false });
       
       // Map the internal type to a display label
-      let typeLabel = 'Info'; // Default for 'print'
+      let typeLabel = 'Print'; // Default for 'print'
       if(type === 'warn') typeLabel = 'Warn';
       else if(type === 'error') typeLabel = 'Error';
-      else if(type === 'sys') typeLabel = 'System';
+      else if(type === 'sys') typeLabel = 'Info';
       
       div.innerText = `[${time}][${typeLabel}] ${msg}`;
       
@@ -766,3 +766,4 @@
   </script>
 </body>
 </html>
+
